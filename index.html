@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="th" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SHADOW ARENA: Echoes of the Fallen</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'media',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#0f172a',
+                        card: '#1e293b'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px) rotate(-2deg); }
+            50% { transform: translateX(5px) rotate(2deg); }
+            75% { transform: translateX(-5px) rotate(-2deg); }
+        }
+        .animate-shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+        
+        @keyframes damagePopup {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-40px) scale(1.2); }
+        }
+        .damage-popup {
+            position: absolute;
+            animation: damagePopup 1s ease-out forwards;
+            pointer-events: none;
+            z-index: 50;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px black;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up { animation: fadeInUp 0.6s ease-out forwards; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-cyan-500 selection:text-white">
+
+    <div id="app-container" class="flex-1 flex flex-col w-full max-w-7xl mx-auto relative h-screen overflow-hidden">
+        
+        <!-- Top Navbar -->
+        <header id="main-nav" class="hidden bg-slate-900 border-b border-slate-800 p-3 sticky top-0 z-40 shadow-lg shrink-0">
+            <div class="flex justify-between items-center">
+                <h1 class="text-lg sm:text-xl font-black text-cyan-500 tracking-widest uppercase drop-shadow-md">Shadow Arena</h1>
+                <div class="flex gap-4 text-xs sm:text-sm font-bold text-slate-300">
+                    <span class="bg-slate-800 px-3 py-1 rounded-full border border-slate-700">🪙 <span id="nav-gold" class="text-yellow-400">0</span></span>
+                    <span class="bg-slate-800 px-3 py-1 rounded-full border border-slate-700">⭐ Lv.<span id="nav-level" class="text-white">1</span></span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <div id="views-container" class="flex-1 overflow-y-auto relative">
+            
+            <!-- 1. Main Menu View -->
+            <main id="view-main-menu" class="view-section flex flex-col items-center justify-center min-h-full p-4 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black">
+                <div class="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
+                    <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-cyan-900 blur-[120px] rounded-full mix-blend-screen"></div>
+                    <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-900 blur-[120px] rounded-full mix-blend-screen"></div>
+                </div>
+                <div class="z-10 flex flex-col items-center text-center animate-fade-in-up">
+                    <h2 class="text-sm md:text-lg font-bold tracking-[0.3em] text-slate-400 mb-2 uppercase">The Shadow Awakens</h2>
+                    <h1 class="text-5xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-b from-slate-100 to-slate-500 tracking-widest drop-shadow-2xl mb-2">SHADOW ARENA</h1>
+                    <h3 class="text-xl md:text-2xl font-bold text-cyan-500 tracking-[0.2em] mb-12 uppercase drop-shadow-md">Echoes of the Fallen</h3>
+                    <div class="flex flex-col gap-4 w-64">
+                        <button onclick="continueGame()" class="group relative px-6 py-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-cyan-500 text-slate-200 font-bold tracking-widest uppercase rounded-sm shadow-lg transition-all active:scale-95">
+                            <span class="absolute inset-y-0 left-0 w-1 bg-cyan-500 scale-y-0 group-hover:scale-y-100 transition-transform"></span>
+                            Continue
+                        </button>
+                        <button onclick="startNewGame()" class="group relative px-6 py-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-yellow-500 text-slate-200 font-bold tracking-widest uppercase rounded-sm shadow-lg transition-all active:scale-95">
+                            <span class="absolute inset-y-0 left-0 w-1 bg-yellow-500 scale-y-0 group-hover:scale-y-100 transition-transform"></span>
+                            New Journey
+                        </button>
+                    </div>
+                </div>
+            </main>
+
+            <!-- 2. Character Creation View -->
+            <main id="view-character-creation" class="view-section hidden p-4 flex-col items-center justify-center min-h-full">
+                <div class="max-w-4xl mx-auto w-full flex flex-col gap-6 animate-fade-in-up">
+                    <h2 class="text-2xl sm:text-3xl font-black text-center text-cyan-500 uppercase tracking-widest drop-shadow-md">Forge Your Legend</h2>
+                    <div class="bg-card border border-slate-700 p-6 rounded-lg shadow-lg">
+                        <label for="player-name-input" class="block text-sm font-bold text-slate-400 uppercase tracking-widest mb-3">Enter Your Name</label>
+                        <input type="text" id="player-name-input" placeholder="Shadow Knight..." class="w-full bg-slate-900 border border-slate-600 text-white px-4 py-3 rounded-md focus:outline-none focus:border-cyan-500 transition-colors font-bold text-lg" maxlength="16">
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="class-cards-container"></div>
+                    <div id="class-preview-container" class="hidden bg-card border border-slate-700 p-6 rounded-lg shadow-lg animate-fade-in-up">
+                        <div class="flex flex-col md:flex-row gap-6 items-center md:items-start">
+                            <div id="preview-icon" class="text-7xl bg-slate-900 p-6 rounded-full border border-slate-700 shadow-inner">🥷</div>
+                            <div class="flex-1 w-full">
+                                <h3 id="preview-name" class="text-2xl font-black text-cyan-400 uppercase tracking-wider mb-1 text-center md:text-left">Class</h3>
+                                <p id="preview-desc" class="text-sm text-slate-400 mb-4 text-center md:text-left">Desc</p>
+                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4 text-sm font-bold">
+                                    <div class="bg-slate-900 border border-slate-700 p-2 rounded text-center"><span class="text-green-500 block text-xs">HP</span><span id="preview-hp">0</span></div>
+                                    <div class="bg-slate-900 border border-slate-700 p-2 rounded text-center"><span class="text-yellow-500 block text-xs">ENERGY</span><span id="preview-en">0</span></div>
+                                    <div class="bg-slate-900 border border-slate-700 p-2 rounded text-center"><span class="text-red-400 block text-xs">ATK</span><span id="preview-atk">0</span></div>
+                                    <div class="bg-slate-900 border border-slate-700 p-2 rounded text-center"><span class="text-blue-400 block text-xs">DEF</span><span id="preview-def">0</span></div>
+                                </div>
+                                <div class="flex flex-col gap-2 text-sm">
+                                    <div class="bg-slate-900 border border-slate-700 px-3 py-2 rounded flex justify-between"><span class="text-slate-500 font-bold">Passive:</span><span id="preview-passive" class="text-emerald-400 font-bold text-right"></span></div>
+                                    <div class="bg-slate-900 border border-slate-700 px-3 py-2 rounded flex justify-between"><span class="text-slate-500 font-bold">Start Skill:</span><span id="preview-skill" class="text-purple-400 font-bold text-right"></span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex justify-end mt-2">
+                        <button id="btn-confirm-character" onclick="confirmCharacter()" class="px-8 py-4 bg-slate-800 border border-slate-700 text-slate-500 font-black tracking-widest uppercase rounded shadow-lg transition-all cursor-not-allowed" disabled>Begin Journey</button>
+                    </div>
+                </div>
+            </main>
+
+            <!-- 3. World Map View -->
+            <main id="view-world" class="view-section hidden p-4 flex-col items-center justify-center min-h-full">
+                <div class="max-w-6xl w-full flex flex-col lg:flex-row gap-6 animate-fade-in-up h-full lg:h-[80vh]">
+                    <div class="flex-[2] bg-card border border-slate-700 rounded-xl shadow-lg p-6 flex flex-col h-[50vh] lg:h-full">
+                        <h2 class="text-2xl font-black text-cyan-500 uppercase tracking-widest mb-4 border-b border-slate-700 pb-4">World Map</h2>
+                        <div id="zones-container" class="flex-1 flex flex-col gap-3 overflow-y-auto no-scrollbar pr-2 pb-4"></div>
+                    </div>
+                    <div class="flex-1 bg-slate-900 border border-slate-700 rounded-xl shadow-lg p-6 flex flex-col relative min-h-[300px]">
+                        <div id="zone-details-empty" class="text-center text-slate-500 my-auto">
+                            <span class="text-4xl block mb-4">🗺️</span>
+                            <p class="font-bold tracking-widest uppercase">Select a region<br>to view details</p>
+                        </div>
+                        <div id="zone-details-content" class="hidden flex-col h-full animate-fade-in-up">
+                            <h3 id="zone-detail-name" class="text-2xl font-black text-white uppercase tracking-wider mb-2">Zone Name</h3>
+                            <p id="zone-detail-desc" class="text-sm text-slate-400 mb-4 pb-4 border-b border-slate-700">Desc</p>
+                            <div class="space-y-4 mb-6">
+                                <div class="bg-slate-950 border border-slate-800 p-3 rounded-lg flex justify-between items-center">
+                                    <span class="text-xs font-bold text-slate-500 uppercase">Recommended Level</span>
+                                    <span id="zone-detail-level" class="text-lg font-black text-yellow-400">Lv. 1</span>
+                                </div>
+                                <div class="bg-slate-950 border border-slate-800 p-3 rounded-lg">
+                                    <span class="text-xs font-bold text-slate-500 uppercase block mb-1">Monsters</span>
+                                    <p id="zone-detail-enemies" class="text-sm font-bold text-slate-300"></p>
+                                </div>
+                                <div class="bg-slate-950 border border-slate-800 p-3 rounded-lg border-l-4 border-l-red-500">
+                                    <span class="text-xs font-bold text-slate-500 uppercase block mb-1">Area Boss</span>
+                                    <p id="zone-detail-boss" class="text-sm font-black text-red-400"></p>
+                                </div>
+                            </div>
+                            <button id="btn-enter-zone" class="mt-auto w-full px-6 py-4 bg-cyan-700 hover:bg-cyan-600 border border-cyan-500 text-white font-black tracking-widest uppercase rounded transition-all active:scale-95 shadow-[0_0_15px_rgba(6,182,212,0.3)]">Enter Area</button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- 4. Battle View -->
+            <main id="view-battle" class="view-section hidden p-4 flex-col transition-colors duration-1000 min-h-full">
+                <div class="max-w-5xl mx-auto w-full flex flex-col gap-4 animate-fade-in-up h-full">
+                    <div class="bg-slate-900/80 backdrop-blur-sm border border-slate-700 rounded-lg p-3 flex justify-between items-center shadow-lg">
+                        <h2 id="battle-zone-name" class="text-lg font-black text-cyan-400 uppercase tracking-widest">Zone</h2>
+                        <div class="text-xs font-bold flex gap-2">
+                            <span class="bg-red-900/50 text-red-300 px-2 py-1 rounded hidden sm:inline">🔥>❄️</span>
+                            <span class="bg-blue-900/50 text-blue-300 px-2 py-1 rounded hidden sm:inline">❄️>⚡</span>
+                            <span class="bg-yellow-900/50 text-yellow-300 px-2 py-1 rounded hidden sm:inline">⚡>🔥</span>
+                            <span class="bg-purple-900/50 text-purple-300 px-2 py-1 rounded hidden sm:inline">🌑><✨</span>
+                            <span class="bg-slate-800 text-slate-300 px-2 py-1 rounded sm:hidden">Elements Active</span>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col md:flex-row gap-4 justify-between items-stretch flex-1">
+                        <!-- Player Panel -->
+                        <div class="flex-1 bg-card border-t-4 border-cyan-500 rounded-xl p-4 flex flex-col items-center shadow-lg relative">
+                            <h3 id="battle-player-name" class="font-bold text-cyan-400 mb-2">Player</h3>
+                            <div id="battle-player-avatar" class="text-6xl p-4 bg-slate-800 rounded-full border border-slate-600 mb-4 shadow-inner relative">🥷</div>
+                            <div class="w-full space-y-2 text-xs font-bold">
+                                <div>
+                                    <div class="flex justify-between mb-1"><span class="text-green-400">HP</span><span id="battle-player-hp-txt">100/100</span></div>
+                                    <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden"><div id="battle-player-hp" class="bg-green-500 h-2 transition-all duration-300" style="width: 100%"></div></div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between mb-1"><span class="text-yellow-400">EN</span><span id="battle-player-en-txt">0/100</span></div>
+                                    <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden"><div id="battle-player-en" class="bg-yellow-500 h-2 transition-all duration-300" style="width: 0%"></div></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Center Arena -->
+                        <div class="flex-[1.5] flex flex-col gap-2 min-w-[280px]">
+                            <div class="bg-slate-900/90 rounded-xl border border-slate-700 p-3 flex flex-col items-center justify-center min-h-[100px] relative overflow-hidden shadow-lg">
+                                <h2 id="battle-turn-indicator" class="text-xl font-black tracking-widest text-cyan-500 uppercase transition-colors">YOUR TURN</h2>
+                                <div id="battle-center-text" class="absolute font-black text-2xl opacity-0 pointer-events-none transition-all duration-300 drop-shadow-md z-10 text-center"></div>
+                            </div>
+                            <div class="flex-1 bg-slate-900/80 rounded-xl border border-slate-700 p-3 flex flex-col relative h-32 md:h-auto shadow-inner">
+                                <span class="absolute top-2 right-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Combat Log</span>
+                                <div id="battle-log" class="overflow-y-auto no-scrollbar space-y-2 mt-4 text-xs font-mono flex-1 pb-2"></div>
+                            </div>
+                        </div>
+
+                        <!-- Enemy Panel -->
+                        <div class="flex-1 bg-card border-t-4 border-red-500 rounded-xl p-4 flex flex-col items-center shadow-lg relative">
+                            <div class="w-full flex justify-between items-start mb-2">
+                                <span id="battle-enemy-element" class="text-xs px-2 py-1 rounded font-bold uppercase bg-slate-800 text-slate-400">Normal</span>
+                                <h3 id="battle-enemy-name" class="font-bold text-red-400 text-right">Enemy</h3>
+                            </div>
+                            <div id="battle-enemy-avatar" class="text-6xl p-4 bg-slate-800 rounded-full border border-slate-600 mb-4 shadow-inner relative">👹</div>
+                            <div class="w-full space-y-2 text-xs font-bold mt-auto">
+                                <div>
+                                    <div class="flex justify-between mb-1"><span class="text-red-400">HP</span><span id="battle-enemy-hp-txt">60/60</span></div>
+                                    <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden"><div id="battle-enemy-hp" class="bg-red-500 h-2 transition-all duration-300" style="width: 100%"></div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Combat Actions -->
+                    <div class="bg-slate-900/80 backdrop-blur-sm p-4 rounded-xl shadow-lg border border-slate-700 mt-2 shrink-0">
+                        <div class="grid grid-cols-3 md:grid-cols-6 gap-2">
+                            <button id="b-atk" onclick="executeAction('attack')" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-lg shadow transition-all active:scale-95 flex flex-col items-center disabled:opacity-50">
+                                <span class="text-xl mb-1">⚔️</span><span class="text-[10px] sm:text-xs">Attack</span>
+                            </button>
+                            <button id="b-sk1" onclick="executeAction('skill1')" class="bg-purple-700 hover:bg-purple-600 text-white font-bold py-3 rounded-lg shadow transition-all active:scale-95 flex flex-col items-center disabled:opacity-50 disabled:grayscale">
+                                <span class="text-xl mb-1">🌑</span><span class="text-[10px] sm:text-xs text-center leading-tight">Shadow Slash</span>
+                            </button>
+                            <button id="b-sk2" onclick="executeAction('skill2')" class="bg-blue-700 hover:bg-blue-600 text-white font-bold py-3 rounded-lg shadow transition-all active:scale-95 flex flex-col items-center disabled:opacity-50 disabled:grayscale">
+                                <span class="text-xl mb-1">⚡</span><span class="text-[10px] sm:text-xs text-center leading-tight">Thunder Break</span>
+                            </button>
+                            <button id="b-def" onclick="executeAction('defend')" class="bg-slate-600 hover:bg-slate-500 text-white font-bold py-3 rounded-lg shadow transition-all active:scale-95 flex flex-col items-center disabled:opacity-50">
+                                <span class="text-xl mb-1">🛡️</span><span class="text-[10px] sm:text-xs">Defend</span>
+                            </button>
+                            <button id="b-heal" onclick="executeAction('heal')" class="bg-emerald-700 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg shadow transition-all active:scale-95 flex flex-col items-center disabled:opacity-50 disabled:grayscale">
+                                <span class="text-xl mb-1">❤️</span><span class="text-[10px] sm:text-xs">Heal <span id="b-heal-count">(2)</span></span>
+                            </button>
+                            <button id="b-ult" onclick="executeAction('ultimate')" class="bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-3 rounded-lg shadow transition-all active:scale-95 flex flex-col items-center disabled:opacity-50 disabled:grayscale">
+                                <span class="text-xl mb-1">✨</span><span class="text-[10px] sm:text-xs uppercase">Ultimate</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- 5. Inventory View -->
+            <main id="view-inventory" class="view-section hidden p-4 flex-col items-center min-h-full">
+                <div class="max-w-4xl mx-auto w-full flex flex-col gap-4 animate-fade-in-up">
+                    <h2 class="text-2xl font-black text-cyan-500 uppercase tracking-widest border-b border-slate-700 pb-2">Inventory & Equipment</h2>
+                    
+                    <div class="grid grid-cols-3 gap-2 bg-slate-900 p-4 rounded-xl border border-slate-700 shadow-lg">
+                        <div class="flex flex-col items-center p-3 bg-slate-800 rounded border border-slate-600">
+                            <span class="text-[10px] text-slate-400 uppercase font-bold mb-2">Weapon</span>
+                            <div id="eq-weapon-slot" class="text-3xl mb-2">➖</div>
+                            <span id="eq-weapon-name" class="text-xs font-bold text-white text-center">None</span>
+                            <span id="eq-weapon-stat" class="text-[10px] text-emerald-400 font-bold mt-1"></span>
+                        </div>
+                        <div class="flex flex-col items-center p-3 bg-slate-800 rounded border border-slate-600">
+                            <span class="text-[10px] text-slate-400 uppercase font-bold mb-2">Armor</span>
+                            <div id="eq-armor-slot" class="text-3xl mb-2">➖</div>
+                            <span id="eq-armor-name" class="text-xs font-bold text-white text-center">None</span>
+                            <span id="eq-armor-stat" class="text-[10px] text-blue-400 font-bold mt-1"></span>
+                        </div>
+                        <div class="flex flex-col items-center p-3 bg-slate-800 rounded border border-slate-600">
+                            <span class="text-[10px] text-slate-400 uppercase font-bold mb-2">Relic</span>
+                            <div id="eq-relic-slot" class="text-3xl mb-2">➖</div>
+                            <span id="eq-relic-name" class="text-xs font-bold text-white text-center">None</span>
+                            <span id="eq-relic-stat" class="text-[10px] text-yellow-400 font-bold mt-1"></span>
+                        </div>
+                    </div>
+
+                    <h3 class="text-lg font-bold text-slate-300 mt-4">Your Bag</h3>
+                    <div id="inventory-list" class="grid grid-cols-2 md:grid-cols-4 gap-3 overflow-y-auto pb-4 pr-2"></div>
+                </div>
+            </main>
+
+            <!-- 6. Shop View -->
+            <main id="view-shop" class="view-section hidden p-4 flex-col items-center min-h-full">
+                <div class="max-w-4xl mx-auto w-full flex flex-col gap-4 animate-fade-in-up">
+                    <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                        <h2 class="text-2xl font-black text-yellow-500 uppercase tracking-widest flex items-center gap-2">
+                            <span class="text-3xl">🏪</span> Shadow Merchant
+                        </h2>
+                        <span class="font-bold text-slate-300 bg-slate-900 px-4 py-2 rounded-lg border border-slate-700">🪙 <span id="shop-gold" class="text-yellow-400">0</span></span>
+                    </div>
+                    <p class="text-sm text-slate-400 mb-2">"มีของดีๆ ให้เลือกซื้อเพียบ... ถ้าเจ้ามีเงินพอนะ"</p>
+                    <div id="shop-list" class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4"></div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <nav id="bottom-nav" class="hidden bg-slate-900 border-t border-slate-800 p-2 sticky bottom-0 z-40 flex justify-around shadow-[0_-5px_15px_rgba(0,0,0,0.5)] shrink-0">
+            <button onclick="navigateTo('view-world'); renderWorld();" class="flex flex-col items-center p-2 text-slate-400 hover:text-cyan-400 transition-colors focus:outline-none">
+                <span class="text-2xl mb-1">🗺️</span><span class="text-[10px] font-bold uppercase tracking-widest">World</span>
+            </button>
+            <button onclick="navigateTo('view-inventory'); renderInventory();" class="flex flex-col items-center p-2 text-slate-400 hover:text-cyan-400 transition-colors focus:outline-none">
+                <span class="text-2xl mb-1">🎒</span><span class="text-[10px] font-bold uppercase tracking-widest">Items</span>
+            </button>
+            <button onclick="navigateTo('view-shop'); renderShop();" class="flex flex-col items-center p-2 text-slate-400 hover:text-cyan-400 transition-colors focus:outline-none">
+                <span class="text-2xl mb-1">🏪</span><span class="text-[10px] font-bold uppercase tracking-widest">Shop</span>
+            </button>
+            <button onclick="saveGame()" class="flex flex-col items-center p-2 text-slate-400 hover:text-emerald-400 transition-colors focus:outline-none">
+                <span class="text-2xl mb-1">💾</span><span class="text-[10px] font-bold uppercase tracking-widest">Save</span>
+            </button>
+        </nav>
+
+        <!-- Modals -->
+        <dialog id="modal-event" class="bg-slate-900 text-slate-100 rounded-xl shadow-2xl p-0 backdrop:bg-slate-950/90 max-w-sm w-full border border-slate-700">
+            <div class="p-6 text-center">
+                <div id="event-icon" class="text-6xl mb-4 animate-bounce">❓</div>
+                <h2 id="event-title" class="text-2xl font-black mb-2 text-cyan-400 uppercase tracking-widest">Event Title</h2>
+                <p id="event-desc" class="text-slate-300 mb-6 text-sm leading-relaxed">Event Description</p>
+                <div id="event-actions" class="flex flex-col gap-3"></div>
+            </div>
+        </dialog>
+
+        <dialog id="modal-battle-result" class="bg-slate-900 text-slate-100 rounded-xl shadow-2xl p-0 backdrop:bg-slate-950/90 max-w-sm w-full border-t-4 text-center">
+            <div class="p-6">
+                <h2 id="br-title" class="text-3xl font-black mb-2 tracking-widest uppercase">Result</h2>
+                <p id="br-desc" class="text-slate-400 mb-4 text-sm leading-relaxed">...</p>
+                <div id="br-rewards" class="bg-slate-800 p-4 rounded-lg text-left text-sm font-bold mb-6 hidden border border-slate-700 space-y-2">
+                    <p class="text-yellow-400 flex justify-between"><span>🪙 Gold:</span> <span>+<span id="br-gold">0</span></span></p>
+                    <p class="text-blue-400 flex justify-between"><span>⭐ EXP:</span> <span>+<span id="br-exp">0</span></span></p>
+                    <p id="br-item-drop" class="text-emerald-400 flex justify-between hidden"><span>🎁 Item:</span> <span id="br-item-name"></span></p>
+                </div>
+                <button onclick="endCombat()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-lg shadow transition-all active:scale-95 uppercase tracking-widest">Continue</button>
+            </div>
+        </dialog>
+
+    </div>
+
+    <!-- ============================================== -->
+    <!-- JAVASCRIPT: ALL GAME LOGIC IN ONE PLACE        -->
+    <!-- ============================================== -->
+    <script>
+        // --- 1. GAME DATA & STATE ---
+        const gameState = {
+            player: {
+                name: "", class: "", level: 1, exp: 0, maxExp: 100, gold: 50,
+                hp: 100, maxHp: 100, energy: 0, maxEnergy: 100,
+                baseAtk: 15, baseDef: 5, combo: 0, healCount: 2, maxHeal: 2, isDefending: false
+            },
+            equipment: { weapon: null, armor: null, relic: null },
+            inventory: ["hp_potion"],
+            progress: { unlockedZones: ["zone_village"], currentZone: "" }
+        };
+
+        const classData = {
+            "shadow_knight": { id: "shadow_knight", name: "Shadow Knight", icon: "🥷", color: "text-cyan-400", border: "border-cyan-500", desc: "สมดุล โจมตีและป้องกันดีเยี่ยม", hp: 120, energy: 100, atk: 15, def: 8, passive: "HP สูง, ฟื้นฟูสมดุล", startWeapon: "iron_sword" },
+            "arcane_hunter": { id: "arcane_hunter", name: "Arcane Hunter", icon: "🏹", color: "text-purple-400", border: "border-purple-500", desc: "โจมตีรุนแรง แต่บอบบาง", hp: 80, energy: 120, atk: 22, def: 3, passive: "พลังโจมตีมหาศาล", startWeapon: "shadow_blade" },
+            "soul_guardian": { id: "soul_guardian", name: "Soul Guardian", icon: "🛡️", color: "text-emerald-400", border: "border-emerald-500", desc: "พลังป้องกันสูง ทนทาน", hp: 180, energy: 80, atk: 10, def: 12, passive: "ถึกทน ดาเมจน้อยลง", startWeapon: "leather_armor" } // Use armor as weapon just for starting stats tweak
+        };
+
+        const worldZones = [
+            { id: "zone_village", name: "Shadow Village", icon: "🏠", reqLevel: 1, desc: "หมู่บ้านที่ถูกทิ้งร้าง จุดเริ่มต้นของการผจญภัย", enemies: ["Goblin", "Shadow Rat"], boss: "Goblin Chieftain" },
+            { id: "zone_forest", name: "Whispering Forest", icon: "🌲", reqLevel: 3, desc: "ป่าที่เต็มไปด้วยเสียงกระซิบของวิญญาณร้าย", enemies: ["Forest Wolf", "Cursed Treant"], boss: "Ancient Treant" },
+            { id: "zone_ruins", name: "Abandoned Ruins", icon: "🏚️", reqLevel: 6, desc: "ซากปรักหักพังของอาณาจักรโบราณ", enemies: ["Skeleton Warrior", "Dark Mage"], boss: "Bone King" },
+            { id: "zone_valley", name: "Ashen Valley", icon: "🌋", reqLevel: 10, desc: "หุบเขาเถ้าถ่านที่เต็มไปด้วยความร้อนทุรนทุราย", enemies: ["Flame Beast", "Ash Golem"], boss: "Inferno Beast" }
+        ];
+
+        const enemiesDB = {
+            "Goblin": { hp: 50, atk: 12, element: "Normal", icon: "👹" },
+            "Shadow Rat": { hp: 40, atk: 15, element: "Shadow", icon: "🐀" },
+            "Goblin Chieftain": { hp: 120, atk: 18, element: "Normal", icon: "👺" },
+            "Forest Wolf": { hp: 80, atk: 20, element: "Normal", icon: "🐺" },
+            "Cursed Treant": { hp: 100, atk: 15, element: "Ice", icon: "🌳" },
+            "Ancient Treant": { hp: 200, atk: 25, element: "Ice", icon: "🌲" },
+            "Skeleton Warrior": { hp: 100, atk: 25, element: "Normal", icon: "💀" },
+            "Dark Mage": { hp: 90, atk: 35, element: "Shadow", icon: "🧙‍♂️" },
+            "Bone King": { hp: 300, atk: 35, element: "Shadow", icon: "👑" },
+            "Flame Beast": { hp: 150, atk: 40, element: "Fire", icon: "🐅" },
+            "Ash Golem": { hp: 250, atk: 20, element: "Fire", icon: "🪨" },
+            "Inferno Beast": { hp: 450, atk: 50, element: "Fire", icon: "🌋" }
+        };
+
+        const itemDB = {
+            "hp_potion": { id: "hp_potion", name: "Health Potion", icon: "❤️", type: "consumable", effect: 50, desc: "ฟื้นฟู 50 HP", price: 50 },
+            "iron_sword": { id: "iron_sword", name: "Iron Sword", icon: "🗡️", type: "weapon", stat: "atk", val: 5, desc: "ATK +5", price: 150 },
+            "shadow_blade": { id: "shadow_blade", name: "Shadow Blade", icon: "⚔️", type: "weapon", stat: "atk", val: 15, desc: "ATK +15", price: 600 },
+            "leather_armor": { id: "leather_armor", name: "Leather Armor", icon: "🛡️", type: "armor", stat: "def", val: 4, desc: "DEF +4", price: 150 },
+            "knight_armor": { id: "knight_armor", name: "Knight Armor", icon: "🛡️", type: "armor", stat: "def", val: 12, desc: "DEF +12", price: 700 },
+            "energy_ring": { id: "energy_ring", name: "Energy Ring", icon: "💍", type: "relic", stat: "en", val: 20, desc: "Max Energy +20", price: 400 }
+        };
+
+        const elementChart = {
+            "Fire": { strongAgainst: "Ice", weakAgainst: "Lightning" },
+            "Ice": { strongAgainst: "Lightning", weakAgainst: "Fire" },
+            "Lightning": { strongAgainst: "Fire", weakAgainst: "Ice" },
+            "Light": { strongAgainst: "Shadow", weakAgainst: "" },
+            "Shadow": { strongAgainst: "Light", weakAgainst: "" }
+        };
+
+        let selectedClassId = null;
+        let selectedZoneId = null;
+        let currentEnemy = null;
+        let currentZone = null;
+        let isPlayerTurn = true;
+        let isBattleOver = false;
+
+        // --- 2. ROUTER & SYSTEM ---
+        function navigateTo(viewId) {
+            document.querySelectorAll('.view-section').forEach(view => { view.classList.add('hidden'); view.classList.remove('flex'); });
+            const targetView = document.getElementById(viewId);
+            if (targetView) {
+                targetView.classList.remove('hidden');
+                targetView.classList.add('flex');
+                
+                if (viewId === 'view-main-menu' || viewId === 'view-character-creation') {
+                    document.getElementById('main-nav').classList.add('hidden');
+                    document.getElementById('bottom-nav').classList.add('hidden');
+                } else {
+                    document.getElementById('main-nav').classList.remove('hidden');
+                    if (viewId !== 'view-battle') document.getElementById('bottom-nav').classList.remove('hidden');
+                    else document.getElementById('bottom-nav').classList.add('hidden');
+                    updateNavUI();
+                }
+            }
+        }
+
+        function updateNavUI() {
+            document.getElementById('nav-gold').textContent = gameState.player.gold;
+            document.getElementById('nav-level').textContent = gameState.player.level;
+        }
+
+        function getPlayerStats() {
+            const p = gameState.player;
+            const eq = gameState.equipment;
+            let totalAtk = p.baseAtk + (eq.weapon ? itemDB[eq.weapon].val : 0);
+            let totalDef = p.baseDef + (eq.armor ? itemDB[eq.armor].val : 0);
+            return { attack: totalAtk, defense: totalDef };
+        }
+
+        function recalculateMaxStats() {
+            const p = gameState.player;
+            const eq = gameState.equipment;
+            p.maxEnergy = 100 + (eq.relic ? itemDB[eq.relic].val : 0);
+        }
+
+        // --- 3. MAIN MENU & SAVE ---
+        function startNewGame() {
+            // Reset state
+            Object.assign(gameState.player, { name: "", class: "", level: 1, exp: 0, maxExp: 100, gold: 50, hp: 100, maxHp: 100, energy: 0, maxEnergy: 100, baseAtk: 15, baseDef: 5 });
+            gameState.equipment = { weapon: null, armor: null, relic: null };
+            gameState.inventory = ["hp_potion"];
+            
+            renderCharacterCreation();
+            navigateTo('view-character-creation');
+        }
+
+        function saveGame() {
+            localStorage.setItem('shadowArenaSaveV2', JSON.stringify(gameState));
+            alert("💾 Game Saved Successfully!");
+        }
+
+        function continueGame() {
+            const saved = localStorage.getItem('shadowArenaSaveV2');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                Object.assign(gameState.player, parsed.player);
+                Object.assign(gameState.equipment, parsed.equipment);
+                gameState.inventory = parsed.inventory || [];
+                recalculateMaxStats();
+                navigateTo('view-world');
+                renderWorld();
+            } else {
+                alert("❌ No saved game found!");
+            }
+        }
+
+        // --- 4. CHARACTER CREATION ---
+        function renderCharacterCreation() {
+            const container = document.getElementById('class-cards-container');
+            document.getElementById('player-name-input').value = '';
+            selectedClassId = null;
+            document.getElementById('class-preview-container').classList.add('hidden');
+            checkFormValid();
+            container.innerHTML = '';
+            
+            Object.values(classData).forEach(cls => {
+                const btn = document.createElement('button');
+                btn.id = `card-${cls.id}`;
+                btn.className = "class-card text-left bg-slate-900 border-2 border-slate-700 hover:border-slate-500 rounded-lg p-6 shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-cyan-500 group";
+                btn.onclick = () => selectClass(cls.id);
+                btn.innerHTML = `
+                    <div class="text-4xl mb-4 group-hover:scale-110 transition-transform origin-left">${cls.icon}</div>
+                    <h3 class="text-lg font-black text-slate-200 uppercase tracking-wider mb-2">${cls.name}</h3>
+                    <p class="text-xs text-slate-500 font-bold">${cls.desc}</p>
+                `;
+                container.appendChild(btn);
+            });
+            document.getElementById('player-name-input').addEventListener('input', checkFormValid);
+        }
+
+        function selectClass(id) {
+            selectedClassId = id;
+            const cls = classData[id];
+            
+            document.querySelectorAll('.class-card').forEach(card => card.className = "class-card text-left bg-slate-900 border-2 border-slate-700 hover:border-slate-500 rounded-lg p-6 shadow-lg transition-all group opacity-60 grayscale");
+            const activeCard = document.getElementById(`card-${id}`);
+            activeCard.classList.remove('border-slate-700', 'hover:border-slate-500', 'opacity-60', 'grayscale');
+            activeCard.classList.add(cls.border, 'bg-slate-800');
+
+            document.getElementById('preview-icon').textContent = cls.icon;
+            document.getElementById('preview-name').textContent = cls.name;
+            document.getElementById('preview-name').className = `text-2xl font-black uppercase tracking-wider mb-1 text-center md:text-left ${cls.color}`;
+            document.getElementById('preview-desc').textContent = cls.desc;
+            document.getElementById('preview-hp').textContent = cls.hp;
+            document.getElementById('preview-en').textContent = cls.energy;
+            document.getElementById('preview-atk').textContent = cls.atk;
+            document.getElementById('preview-def').textContent = cls.def;
+            document.getElementById('preview-passive').textContent = cls.passive;
+            document.getElementById('preview-skill').textContent = "Basic Set";
+            
+            document.getElementById('class-preview-container').classList.remove('hidden');
+            checkFormValid();
+        }
+
+        function checkFormValid() {
+            const name = document.getElementById('player-name-input').value.trim();
+            const btn = document.getElementById('btn-confirm-character');
+            if (name.length > 0 && selectedClassId !== null) {
+                btn.disabled = false;
+                btn.className = "px-8 py-4 bg-cyan-700 hover:bg-cyan-600 border border-cyan-500 text-white font-black tracking-widest uppercase rounded shadow-[0_0_15px_rgba(6,182,212,0.5)] transition-all active:scale-95";
+            } else {
+                btn.disabled = true;
+                btn.className = "px-8 py-4 bg-slate-800 border border-slate-700 text-slate-500 font-black tracking-widest uppercase rounded shadow-lg transition-all cursor-not-allowed";
+            }
+        }
+
+        function confirmCharacter() {
+            const name = document.getElementById('player-name-input').value.trim();
+            const cls = classData[selectedClassId];
+            
+            Object.assign(gameState.player, {
+                name: name, class: cls.name, hp: cls.hp, maxHp: cls.hp,
+                energy: 0, maxEnergy: cls.energy, baseAtk: cls.atk, baseDef: cls.def
+            });
+            
+            // Give starter item
+            if(itemDB[cls.startWeapon]) {
+                const item = itemDB[cls.startWeapon];
+                gameState.equipment[item.type] = item.id;
+            }
+            recalculateMaxStats();
+            
+            navigateTo('view-world');
+            renderWorld();
+        }
+
+        // --- 5. WORLD MAP & EVENTS ---
+        function renderWorld() {
+            const container = document.getElementById('zones-container');
+            container.innerHTML = '';
+            
+            worldZones.forEach(zone => {
+                const isUnlocked = gameState.player.level >= zone.reqLevel;
+                const btn = document.createElement('button');
+                btn.id = `btn-zone-${zone.id}`;
+                
+                if (isUnlocked) {
+                    btn.className = "w-full text-left bg-slate-900 border border-slate-700 hover:border-cyan-500 p-4 rounded-lg flex items-center gap-4 transition-all focus:outline-none group";
+                    btn.onclick = () => selectZone(zone.id);
+                    btn.innerHTML = `
+                        <div class="text-3xl bg-slate-800 p-3 rounded-lg border border-slate-700 group-hover:scale-110 transition-transform">${zone.icon}</div>
+                        <div class="flex-1">
+                            <h4 class="text-lg font-black text-slate-200 uppercase tracking-widest">${zone.name}</h4>
+                            <span class="text-[10px] sm:text-xs font-bold text-emerald-500">✔ Unlocked</span>
+                        </div>
+                    `;
+                } else {
+                    btn.className = "w-full text-left bg-slate-950 border border-slate-800 p-4 rounded-lg flex items-center gap-4 opacity-50 cursor-not-allowed";
+                    btn.innerHTML = `
+                        <div class="text-3xl bg-slate-900 p-3 rounded-lg border border-slate-800 grayscale">${zone.icon}</div>
+                        <div class="flex-1">
+                            <h4 class="text-lg font-black text-slate-500 uppercase tracking-widest">${zone.name}</h4>
+                            <span class="text-[10px] sm:text-xs font-bold text-red-500">🔒 Lv. ${zone.reqLevel}</span>
+                        </div>
+                    `;
+                }
+                container.appendChild(btn);
+            });
+        }
+
+        function selectZone(id) {
+            selectedZoneId = id;
+            const zone = worldZones.find(z => z.id === id);
+            
+            document.querySelectorAll('[id^="btn-zone-"]').forEach(btn => {
+                if (!btn.classList.contains('cursor-not-allowed')) {
+                    btn.classList.remove('border-cyan-500', 'bg-slate-800');
+                    btn.classList.add('border-slate-700', 'bg-slate-900');
+                }
+            });
+            const activeBtn = document.getElementById(`btn-zone-${id}`);
+            activeBtn.classList.remove('border-slate-700', 'bg-slate-900');
+            activeBtn.classList.add('border-cyan-500', 'bg-slate-800');
+
+            document.getElementById('zone-details-empty').classList.add('hidden');
+            const detailsContent = document.getElementById('zone-details-content');
+            detailsContent.classList.remove('hidden');
+            detailsContent.classList.add('flex');
+            
+            document.getElementById('zone-detail-name').textContent = `${zone.icon} ${zone.name}`;
+            document.getElementById('zone-detail-desc').textContent = zone.desc;
+            document.getElementById('zone-detail-level').textContent = `Lv. ${zone.reqLevel}`;
+            document.getElementById('zone-detail-enemies').textContent = zone.enemies.join(', ');
+            document.getElementById('zone-detail-boss').textContent = zone.boss;
+            
+            document.getElementById('btn-enter-zone').onclick = () => triggerZoneEntry(zone);
+        }
+
+        function triggerZoneEntry(zone) {
+            gameState.progress.currentZone = zone.name;
+            if (Math.random() < 0.3) {
+                showRandomEvent(zone);
+            } else {
+                initBattle(zone);
+            }
+        }
+
+        function showRandomEvent(zone) {
+            const events = [
+                { title: "Mysterious Chest", icon: "💎", desc: "หีบสมบัติเก่าๆ ซ่อนอยู่...", acts: [{l: "Open it", t: "loot", c: "bg-cyan-600 hover:bg-cyan-500"}, {l: "Ignore", t: "leave", c: "bg-slate-700 hover:bg-slate-600"}] },
+                { title: "Lost Traveler", icon: "👤", desc: "พ่อค้าลึกลับเสนอขาย Potion...", acts: [{l: "Buy Potion (40 Gold)", t: "trade", c: "bg-emerald-600 hover:bg-emerald-500"}, {l: "Walk away", t: "leave", c: "bg-slate-700 hover:bg-slate-600"}] }
+            ];
+            const ev = events[Math.floor(Math.random() * events.length)];
+            const modal = document.getElementById('modal-event');
+            
+            document.getElementById('event-icon').textContent = ev.icon;
+            document.getElementById('event-title').textContent = ev.title;
+            document.getElementById('event-desc').textContent = ev.desc;
+            
+            const cont = document.getElementById('event-actions');
+            cont.innerHTML = '';
+            ev.acts.forEach(act => {
+                const btn = document.createElement('button');
+                btn.className = `w-full py-3 px-4 ${act.c} text-white font-bold tracking-widest uppercase rounded border border-transparent shadow-lg transition-all active:scale-95`;
+                btn.textContent = act.l;
+                btn.onclick = () => {
+                    modal.close();
+                    if(act.t === 'loot') {
+                        if(Math.random() < 0.6) {
+                            const g = Math.floor(Math.random() * 30) + 10;
+                            gameState.player.gold += g; alert(`🎉 ได้รับ ${g} Gold!`);
+                        } else {
+                            const dmg = Math.floor(gameState.player.maxHp * 0.15);
+                            gameState.player.hp = Math.max(1, gameState.player.hp - dmg); alert(`💀 หีบติดกับดัก! โดนดาเมจ ${dmg}`);
+                        }
+                    } else if(act.t === 'trade') {
+                        if(gameState.player.gold >= 40) { gameState.player.gold -= 40; gameState.inventory.push("hp_potion"); alert("🛍️ ได้รับ Health Potion"); }
+                        else { alert("❌ Gold ไม่พอ!"); }
+                    }
+                    updateNavUI();
+                    initBattle(zone);
+                };
+                cont.appendChild(btn);
+            });
+            modal.showModal();
+        }
+
+        // --- 6. BATTLE SYSTEM ---
+        function initBattle(zone) {
+            currentZone = zone; isBattleOver = false; isPlayerTurn = true; gameState.player.isDefending = false;
+            document.getElementById('battle-log').innerHTML = '';
+            
+            const vBattle = document.getElementById('view-battle');
+            vBattle.className = "view-section flex-1 flex-col transition-colors duration-1000 p-4 min-h-full";
+            if(zone.id === 'zone_forest') vBattle.classList.add('bg-emerald-950');
+            else if(zone.id === 'zone_ruins') vBattle.classList.add('bg-slate-900');
+            else if(zone.id === 'zone_valley') vBattle.classList.add('bg-red-950');
+            else vBattle.classList.add('bg-slate-950');
+
+            const isBoss = Math.random() < 0.25; 
+            const eName = isBoss ? zone.boss : zone.enemies[Math.floor(Math.random() * zone.enemies.length)];
+            const eData = enemiesDB[eName] || { hp: 50, atk: 10, element: "Normal", icon: "👹" };
+            
+            // Adjust enemy stats based on player level to keep it balanced
+            const scaling = 1 + ((gameState.player.level - 1) * 0.1);
+            currentEnemy = { name: eName, maxHp: Math.floor(eData.hp * scaling), hp: Math.floor(eData.hp * scaling), atk: Math.floor(eData.atk * scaling), element: eData.element, icon: eData.icon, isBoss: isBoss };
+
+            document.getElementById('battle-zone-name').textContent = zone.name;
+            document.getElementById('battle-enemy-name').textContent = currentEnemy.name;
+            document.getElementById('battle-enemy-avatar').textContent = currentEnemy.icon;
+            
+            const elBadge = document.getElementById('battle-enemy-element');
+            elBadge.textContent = currentEnemy.element;
+            if(currentEnemy.element === 'Fire') elBadge.className = "text-[10px] sm:text-xs px-2 py-1 rounded font-bold uppercase bg-red-900 text-red-200";
+            else if(currentEnemy.element === 'Ice') elBadge.className = "text-[10px] sm:text-xs px-2 py-1 rounded font-bold uppercase bg-blue-900 text-blue-200";
+            else if(currentEnemy.element === 'Lightning') elBadge.className = "text-[10px] sm:text-xs px-2 py-1 rounded font-bold uppercase bg-yellow-900 text-yellow-200";
+            else if(currentEnemy.element === 'Shadow') elBadge.className = "text-[10px] sm:text-xs px-2 py-1 rounded font-bold uppercase bg-purple-900 text-purple-200";
+            else elBadge.className = "text-[10px] sm:text-xs px-2 py-1 rounded font-bold uppercase bg-slate-800 text-slate-400";
+
+            gameState.player.healCount = gameState.player.maxHeal; // Reset heal count per battle
+            bLog(`⚠️ <b>${currentEnemy.name}</b> ปรากฏตัว!`);
+            updateBattleUI(); setTurn(true); navigateTo('view-battle');
+        }
+
+        function updateBattleUI() {
+            const p = gameState.player;
+            document.getElementById('battle-player-name').textContent = p.name;
+            document.getElementById('battle-player-hp-txt').textContent = `${Math.ceil(p.hp)}/${p.maxHp}`;
+            document.getElementById('battle-player-hp').style.width = `${Math.max(0, (p.hp/p.maxHp)*100)}%`;
+            document.getElementById('battle-player-hp').className = (p.hp/p.maxHp) < 0.3 ? "bg-red-500 h-2 transition-all duration-300" : "bg-green-500 h-2 transition-all duration-300";
+            
+            document.getElementById('battle-player-en-txt').textContent = `${Math.floor(p.energy)}/${p.maxEnergy}`;
+            document.getElementById('battle-player-en').style.width = `${Math.min(100, (p.energy/p.maxEnergy)*100)}%`;
+            document.getElementById('b-heal-count').textContent = `(${p.healCount})`;
+
+            document.getElementById('battle-enemy-hp-txt').textContent = `${Math.ceil(currentEnemy.hp)}/${currentEnemy.maxHp}`;
+            document.getElementById('battle-enemy-hp').style.width = `${Math.max(0, (currentEnemy.hp/currentEnemy.maxHp)*100)}%`;
+
+            const disabled = !isPlayerTurn || isBattleOver;
+            document.getElementById('b-atk').disabled = disabled;
+            document.getElementById('b-sk1').disabled = disabled || p.energy < 30;
+            document.getElementById('b-sk2').disabled = disabled || p.energy < 50;
+            document.getElementById('b-def').disabled = disabled;
+            document.getElementById('b-heal').disabled = disabled || p.healCount <= 0 || p.hp >= p.maxHp;
+            document.getElementById('b-ult').disabled = disabled || p.energy < 100;
+        }
+
+        function setTurn(isPlayer) {
+            if(isBattleOver) return;
+            isPlayerTurn = isPlayer;
+            const ind = document.getElementById('battle-turn-indicator');
+            if (isPlayer) {
+                ind.textContent = "YOUR TURN";
+                ind.className = "text-xl font-black tracking-widest text-cyan-500 uppercase transition-colors";
+                gameState.player.isDefending = false;
+            } else {
+                ind.textContent = "ENEMY TURN";
+                ind.className = "text-xl font-black tracking-widest text-red-500 uppercase transition-colors";
+                setTimeout(enemyAction, 1000);
+            }
+            updateBattleUI();
+        }
+
+        function calcDamage(base, element) {
+            let mult = 1.0; let eff = ""; const defE = currentEnemy.element;
+            if (elementChart[element]) {
+                if (elementChart[element].strongAgainst === defE) { mult = 1.5; eff = "SUPER EFFECTIVE!"; } 
+                else if (elementChart[element].weakAgainst === defE) { mult = 0.75; eff = "RESISTED!"; }
+            }
+            const raw = Math.max(1, base * mult);
+            const v = Math.floor(raw * 0.15);
+            return { d: Math.floor(raw + (Math.floor(Math.random() * (v*2+1)) - v)), e: eff };
+        }
+
+        function executeAction(type) {
+            if (!isPlayerTurn || isBattleOver) return;
+            const p = gameState.player; const stats = getPlayerStats();
+            let dmg = {d:0, e:""}; let logStr = "";
+
+            if (type === 'attack') {
+                dmg = calcDamage(stats.attack, "Normal"); logStr = `⚔️ โจมตีปกติ ทำดาเมจ ${dmg.d}`; p.energy += 15;
+            } else if (type === 'skill1') {
+                p.energy -= 30; dmg = calcDamage(stats.attack * 1.8, "Shadow"); logStr = `🌑 <b>Shadow Slash</b> ทำดาเมจ ${dmg.d}`;
+            } else if (type === 'skill2') {
+                p.energy -= 50; dmg = calcDamage(stats.attack * 2.2, "Lightning"); logStr = `⚡ <b>Thunder Break</b> ทำดาเมจ ${dmg.d}`;
+            } else if (type === 'ultimate') {
+                p.energy -= 100; dmg = calcDamage(stats.attack * 3, "Light"); logStr = `✨ <b>ULTIMATE BLAST!</b> ทำดาเมจ ${dmg.d}`;
+                animText("ULTIMATE!", "text-yellow-400");
+            } else if (type === 'defend') {
+                p.isDefending = true; p.energy += 15; logStr = `🛡️ ป้องกัน! ลดดาเมจเทิร์นถัดไป 50%`; animText("DEFEND", "text-slate-400");
+            } else if (type === 'heal') {
+                p.healCount--; const heal = 40; p.hp = Math.min(p.maxHp, p.hp + heal); logStr = `❤️ ฟื้นฟู ${heal} HP`;
+                popNum('battle-player-avatar', `+${heal}`, 'text-green-400');
+            }
+
+            if (dmg.d > 0) {
+                currentEnemy.hp -= dmg.d; popNum('battle-enemy-avatar', `-${dmg.d}`, 'text-red-500'); shake('battle-enemy-avatar');
+                if (dmg.e) { logStr += ` <span class="text-xs text-yellow-400">(${dmg.e})</span>`; animText(dmg.e, dmg.e.includes("SUPER")?"text-green-400":"text-slate-400"); }
+            }
+
+            bLog(logStr); checkWinLose();
+            if (!isBattleOver) { p.energy = Math.min(p.maxEnergy, p.energy); setTurn(false); }
+        }
+
+        function enemyAction() {
+            if (isBattleOver) return;
+            const p = gameState.player; const stats = getPlayerStats();
+            let eDmg = Math.max(1, currentEnemy.atk - stats.defense);
+            let logStr = `👹 ${currentEnemy.name} โจมตี!`;
+
+            if (p.isDefending) { eDmg = Math.floor(eDmg * 0.5); logStr += ` (ป้องกันได้ รับดาเมจ ${eDmg})`; animText("BLOCKED", "text-slate-400"); } 
+            else { logStr += ` โดนดาเมจ ${eDmg}`; }
+
+            p.hp -= eDmg; popNum('battle-player-avatar', `-${eDmg}`, 'text-red-500'); shake('battle-player-avatar');
+            bLog(logStr); checkWinLose();
+            if (!isBattleOver) setTurn(true);
+        }
+
+        function checkWinLose() {
+            if (currentEnemy.hp <= 0) { currentEnemy.hp = 0; isBattleOver = true; updateBattleUI(); setTimeout(() => showResult(true), 800); } 
+            else if (gameState.player.hp <= 0) { gameState.player.hp = 0; isBattleOver = true; updateBattleUI(); setTimeout(() => showResult(false), 800); } 
+            else { updateBattleUI(); }
+        }
+
+        function showResult(isWin) {
+            const modal = document.getElementById('modal-battle-result');
+            const title = document.getElementById('br-title');
+            const rewards = document.getElementById('br-rewards');
+            const dropUI = document.getElementById('br-item-drop');
+            
+            if (isWin) {
+                modal.classList.replace('border-red-600', 'border-emerald-500');
+                title.textContent = "VICTORY"; title.className = "text-3xl font-black mb-2 tracking-widest uppercase text-emerald-500";
+                document.getElementById('br-desc').textContent = `คุณเอาชนะ ${currentEnemy.name} ได้สำเร็จ!`;
+                
+                const gainExp = currentEnemy.isBoss ? 150 : 40;
+                const gainGold = currentEnemy.isBoss ? 100 : 20;
+                gameState.player.exp += gainExp; gameState.player.gold += gainGold;
+                
+                document.getElementById('br-gold').textContent = gainGold;
+                document.getElementById('br-exp').textContent = gainExp;
+                rewards.classList.remove('hidden');
+                dropUI.classList.add('hidden');
+
+                // Item drop chance
+                if (Math.random() < (currentEnemy.isBoss ? 0.5 : 0.1)) {
+                    const pool = ["hp_potion", "iron_sword", "leather_armor"];
+                    const drop = pool[Math.floor(Math.random() * pool.length)];
+                    gameState.inventory.push(drop);
+                    dropUI.classList.remove('hidden');
+                    document.getElementById('br-item-name').textContent = itemDB[drop].icon + " " + itemDB[drop].name;
+                }
+            } else {
+                modal.classList.replace('border-emerald-500', 'border-red-600');
+                title.textContent = "DEFEAT"; title.className = "text-3xl font-black mb-2 tracking-widest uppercase text-red-500";
+                document.getElementById('br-desc').textContent = `คุณพ่ายแพ้... ถูกส่งกลับมาพักฟื้น`;
+                rewards.classList.add('hidden');
+                gameState.player.gold = Math.max(0, gameState.player.gold - 15);
+                gameState.player.hp = gameState.player.maxHp; 
+            }
+            updateNavUI(); modal.showModal();
+        }
+
+        function endCombat() {
+            document.getElementById('modal-battle-result').close();
+            if (gameState.player.exp >= gameState.player.maxExp) {
+                gameState.player.level++; gameState.player.exp -= gameState.player.maxExp;
+                gameState.player.maxExp = Math.floor(gameState.player.maxExp * 1.5);
+                gameState.player.baseAtk += 2; gameState.player.maxHp += 10; gameState.player.hp = gameState.player.maxHp;
+                alert(`🎉 LEVEL UP! ตอนนี้คุณคือ Level ${gameState.player.level}\nMax HP +10, ATK +2`);
+                updateNavUI();
+            }
+            navigateTo('view-world'); renderWorld();
+        }
+
+        function bLog(msg) {
+            const l = document.getElementById('battle-log'); l.innerHTML += `<p>${msg}</p>`; l.scrollTop = l.scrollHeight;
+        }
+        function animText(txt, col) {
+            const e = document.getElementById('battle-center-text'); e.textContent = txt;
+            e.className = `absolute font-black text-2xl pointer-events-none transition-all duration-300 drop-shadow-md z-10 ${col}`;
+            e.style.opacity = '1'; e.style.transform = 'scale(1.2) translateY(-10px)';
+            setTimeout(() => { e.style.opacity = '0'; e.style.transform = 'scale(1) translateY(0)'; }, 800);
+        }
+        function shake(id) {
+            const e = document.getElementById(id); e.classList.remove('animate-shake'); void e.offsetWidth; e.classList.add('animate-shake');
+        }
+        function popNum(id, txt, col) {
+            const c = document.getElementById(id); const e = document.createElement('div');
+            e.className = `damage-popup text-xl sm:text-2xl ${col}`; e.textContent = txt;
+            e.style.left = `calc(50% + ${(Math.random()-0.5)*40}px)`; e.style.top = '0px';
+            c.appendChild(e); setTimeout(() => e.remove(), 1000);
+        }
+
+        // --- 7. INVENTORY & EQUIPMENT ---
+        function renderInventory() {
+            const eq = gameState.equipment;
+            ['weapon', 'armor', 'relic'].forEach(slot => {
+                if(eq[slot]) {
+                    document.getElementById(`eq-${slot}-slot`).textContent = itemDB[eq[slot]].icon;
+                    document.getElementById(`eq-${slot}-name`).textContent = itemDB[eq[slot]].name;
+                    document.getElementById(`eq-${slot}-stat`).textContent = `+${itemDB[eq[slot]].val} ${itemDB[eq[slot]].stat.toUpperCase()}`;
+                } else {
+                    document.getElementById(`eq-${slot}-slot`).textContent = "➖";
+                    document.getElementById(`eq-${slot}-name`).textContent = "None";
+                    document.getElementById(`eq-${slot}-stat`).textContent = "";
+                }
+            });
+
+            const cont = document.getElementById('inventory-list'); cont.innerHTML = '';
+            if (gameState.inventory.length === 0) { cont.innerHTML = `<p class="col-span-2 md:col-span-4 text-center text-slate-500 py-8">Your bag is empty.</p>`; return; }
+
+            gameState.inventory.forEach((itemId, idx) => {
+                const item = itemDB[itemId]; if(!item) return;
+                const d = document.createElement('div'); d.className = "bg-slate-900 border border-slate-700 p-3 rounded-lg flex flex-col items-center text-center shadow-lg";
+                d.innerHTML = `
+                    <div class="text-3xl mb-2">${item.icon}</div>
+                    <h4 class="text-xs font-bold text-white mb-1 leading-tight">${item.name}</h4>
+                    <p class="text-[10px] text-slate-400 mb-2">${item.desc}</p>
+                    <button onclick="useItem(${idx})" class="w-full mt-auto bg-cyan-700 hover:bg-cyan-600 text-white text-[10px] font-bold py-1 rounded uppercase tracking-wider transition-colors">
+                        ${item.type === 'consumable' ? 'Use' : 'Equip'}
+                    </button>`;
+                cont.appendChild(d);
+            });
+        }
+
+        function useItem(idx) {
+            const item = itemDB[gameState.inventory[idx]];
+            if (item.type === 'consumable') {
+                if(item.id === 'hp_potion') {
+                    if(gameState.player.hp >= gameState.player.maxHp) { alert("HP เต็มอยู่แล้ว!"); return; }
+                    gameState.player.hp = Math.min(gameState.player.maxHp, gameState.player.hp + item.effect); alert(`❤️ ฟื้นฟู ${item.effect} HP`);
+                }
+                gameState.inventory.splice(idx, 1);
+            } else {
+                if(gameState.equipment[item.type]) gameState.inventory.push(gameState.equipment[item.type]); // Return old eq to bag
+                gameState.equipment[item.type] = item.id;
+                gameState.inventory.splice(idx, 1);
+                recalculateMaxStats();
+            }
+            renderInventory(); updateNavUI();
+        }
+
+        // --- 8. SHOP ---
+        const shopItems = ["hp_potion", "iron_sword", "shadow_blade", "leather_armor", "knight_armor", "energy_ring"];
+        function renderShop() {
+            document.getElementById('shop-gold').textContent = gameState.player.gold;
+            const cont = document.getElementById('shop-list'); cont.innerHTML = '';
+            shopItems.forEach(id => {
+                const item = itemDB[id]; const canBuy = gameState.player.gold >= item.price;
+                const d = document.createElement('div');
+                d.className = `bg-slate-900 border ${canBuy ? 'border-slate-600 hover:border-yellow-500' : 'border-red-900/50 opacity-70'} p-4 rounded-lg flex items-center gap-4 transition-colors`;
+                d.innerHTML = `
+                    <div class="text-3xl sm:text-4xl bg-slate-800 p-2 sm:p-3 rounded-lg border border-slate-700 shrink-0">${item.icon}</div>
+                    <div class="flex-1 min-w-0">
+                        <h4 class="text-xs sm:text-sm font-bold text-white uppercase truncate">${item.name}</h4>
+                        <p class="text-[10px] sm:text-xs text-slate-400 mb-1">${item.desc}</p>
+                        <span class="text-[10px] sm:text-xs font-bold ${canBuy ? 'text-yellow-400' : 'text-red-500'}">🪙 ${item.price} Gold</span>
+                    </div>
+                    <button onclick="buyItem('${item.id}', ${item.price})" ${!canBuy ? 'disabled' : ''} 
+                        class="px-3 sm:px-4 py-2 bg-yellow-600 hover:bg-yellow-500 disabled:bg-slate-700 disabled:text-slate-500 text-white text-[10px] sm:text-xs font-black uppercase rounded shadow transition-all active:scale-95 shrink-0">
+                        Buy
+                    </button>`;
+                cont.appendChild(d);
+            });
+        }
+        function buyItem(id, price) {
+            if (gameState.player.gold >= price) {
+                gameState.player.gold -= price; gameState.inventory.push(id);
+                renderShop(); updateNavUI();
+            }
+        }
+
+        // Initialize
+        window.addEventListener('DOMContentLoaded', () => {
+            navigateTo('view-main-menu');
+        });
+    </script>
+</body>
+</html>
